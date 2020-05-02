@@ -4,7 +4,7 @@ const oauthSignature = require('oauth-signature');
 const chalk = require('chalk');
 
 const [consumerKey, consumerSecret, accessToken, tokenSecret] = process.argv.slice(2);
-const hashTags = process.argv.slice(6).join(',');
+const hashTags = process.argv.slice(7);
 if (!(consumerKey && consumerSecret && accessToken && tokenSecret)) {
   throw new Error('Missing argument: <consumerKey> <consumerSecret> <accessToken> <tokenSecret>');
 }
@@ -13,19 +13,24 @@ const BYTES_PER_MB = +Math.pow(2, 20);
 streamTweets(hashTags).then()
 
 async function streamTweets(tags) {
-  const url = `https://stream.twitter.com/1.1/statuses/filter.json?track=${tags || ''}`;
+  const tagsString = tags.join(',');
+  const url = `https://stream.twitter.com/1.1/statuses/filter.json?track=${tagsString}`;
   const authorization = createOauthSignature('GET', url, {
     consumerKey,
     consumerSecret,
     accessToken,
     tokenSecret
   });
+  console.log(url)
   let totalBytes = 0;
   const net = require('net');
   const client = new net.Socket();
   client.connect(5555, '127.0.0.1');
   client.on('connect', async () => {
-    console.log(chalk.greenBright('Streaming started...'));
+    const msg = 'Twitter stream started';
+    const delimeter = '='.repeat(msg.length);
+    console.log(chalk.greenBright(`\n${delimeter}\n${msg}\n${delimeter}`));
+    console.log(chalk.greenBright(chalk.yellow(`\nWatching hash tags:\n${tags.map(x => '#'+x).join(' ')}\n`)));
     const res = await axios.get(url, {
       responseType: 'stream',
       headers: {
