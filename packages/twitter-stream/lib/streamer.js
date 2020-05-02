@@ -14,7 +14,6 @@ streamTweets(hashTags).then()
 
 async function streamTweets(tags) {
   const url = `https://stream.twitter.com/1.1/statuses/filter.json?track=${tags || ''}`;
-  console.log(('Streaming started'));
   const authorization = createOauthSignature('GET', url, {
     consumerKey,
     consumerSecret,
@@ -26,8 +25,7 @@ async function streamTweets(tags) {
   const client = new net.Socket();
   client.connect(5555, '127.0.0.1');
   client.on('connect', async () => {
-    console.log('Socket connected')
-
+    console.log(chalk.greenBright('Streaming started...'));
     const res = await axios.get(url, {
       responseType: 'stream',
       headers: {
@@ -43,12 +41,12 @@ async function streamTweets(tags) {
     console.log(err)
   });
   setInterval(() => {
-    process.stdout.write(('Streamed ' + (totalBytes / BYTES_PER_MB).toFixed(2) + ' MB \r'));
+    process.stdout.write((chalk.cyan('Total data streamed: ' + (totalBytes / BYTES_PER_MB).toFixed(2) + ' MB \r')));
   }, 1000);
 }
 
 function createOauthSignature(method, url, { consumerKey, consumerSecret, accessToken, tokenSecret }) {
-  const [baseUrl, query] = url.split('');
+  const [baseUrl, query] = url.split('?');
   const queryParams = query.split('&').reduce((acc, q) => {
     const [key, val] = q.split('=');
     acc[key] = val;
@@ -65,9 +63,8 @@ function createOauthSignature(method, url, { consumerKey, consumerSecret, access
   };
 
   const encodedSignature = oauthSignature.generate(method, baseUrl, { ...oauthParameters, ...queryParams }, consumerSecret, tokenSecret);
-
   const oauthString = Object.keys(oauthParameters)
-    .map(k => `${k}="${oauthParameters[k]}"`)
+    .map(k => `${k}=${oauthParameters[k]}`)
     .join(',');
-  return `OAuth ${oauthString},oauth_signature="${encodedSignature}"`;
+  return `OAuth ${oauthString},oauth_signature=${encodedSignature}`
 }
