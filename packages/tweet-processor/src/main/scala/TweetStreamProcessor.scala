@@ -1,0 +1,63 @@
+import org.apache.spark.streaming.dstream.DStream
+import org.apache.spark.streaming.{ Seconds, StreamingContext }
+import org.apache.spark.{ SparkConf, SparkContext }
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferBrokers
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+
+object TweetStreamProcessor {
+  def main(args: Array[String]) {
+    
+    val kafkaParams = Map[String, Object](
+      "bootstrap.servers" -> "localhost:9092",
+      "key.deserializer" -> classOf[StringDeserializer],
+      "value.deserializer" -> classOf[StringDeserializer],
+      "group.id" -> "tweet-stream",
+      "auto.offset.reset" -> "latest",
+      "enable.auto.commit" -> (false: java.lang.Boolean)
+    )
+    val topics = Array("tweets")
+
+    val sparkConfig = new SparkConf()
+      .setAppName("Twitter Stream")
+      .setMaster("local[2]")
+    val sparkContext = new SparkContext(sparkConfig)
+    sparkContext.setLogLevel("ERROR")
+
+    // val twitterAuth = new OAuthAuthorization(cb.build)
+    
+    val streamingContext = new StreamingContext(sparkContext, Seconds(1))
+    val stream = KafkaUtils.createDirectStream[String, String](
+      streamingContext,
+      PreferBrokers,
+      Subscribe[String, String](topics, kafkaParams)
+    )
+    stream.print()
+    val mappedTweets = stream.map(record => (record.key, record.value))
+    mappedTweets.print()
+
+    // val tweets = streamingContext.textFileStream("http://localhost:9780/user/ethan/tweets/*")
+    // val tweets = streamingContext.socketTextStream("127.0.0.1", 8080)
+    // tweets.print()
+    // val words = tweets.flatMap(_.split(" "))
+    // words.print()
+
+    // val tweets: DStream[Status] = TwitterUtils.createStream(streamingContext, Some(twitterAuth))    
+
+    // val tweetWords = tweets
+    //   .filter(_.getLang() == "en")
+    //   .map(_.getText)
+    //   .map(t => t.toLowerCase)
+    //   .filter(x => x.contains("covid19") || x.contains("coronavirus"))
+    //   .flatMap(t => t.replaceAll("\\n", " ").split("\\s"))
+
+    // val wordCounts = tweetWords.map(x => (x, 1)).reduceByKey(_+_)
+    // wordCounts.print
+    // wordCounts.saveAsTextFiles("tweets", "json")
+
+    streamingContext.start()
+    streamingContext.awaitTermination()
+  }
+}
