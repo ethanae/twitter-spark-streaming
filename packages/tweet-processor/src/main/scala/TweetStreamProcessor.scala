@@ -38,25 +38,6 @@ object TweetStreamProcessor {
     val mappedTweets = stream.map(record => (record.key, record.value))
     mappedTweets.print()
 
-    // val tweets = streamingContext.textFileStream("http://localhost:9780/user/ethan/tweets/*")
-    // val tweets = streamingContext.socketTextStream("127.0.0.1", 8080)
-    // tweets.print()
-    // val words = tweets.flatMap(_.split(" "))
-    // words.print()
-
-    // val tweets: DStream[Status] = TwitterUtils.createStream(streamingContext, Some(twitterAuth))    
-
-    // val tweetWords = tweets
-    //   .filter(_.getLang() == "en")
-    //   .map(_.getText)
-    //   .map(t => t.toLowerCase)
-    //   .filter(x => x.contains("covid19") || x.contains("coronavirus"))
-    //   .flatMap(t => t.replaceAll("\\n", " ").split("\\s"))
-
-    // val wordCounts = tweetWords.map(x => (x, 1)).reduceByKey(_+_)
-    // wordCounts.print
-    // wordCounts.saveAsTextFiles("tweets", "json")
-
     streamingContext.start()
     streamingContext.awaitTermination()
   }
