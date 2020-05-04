@@ -25,8 +25,6 @@ object TweetStreamProcessor {
       .setMaster("local[2]")
     val sparkContext = new SparkContext(sparkConfig)
     sparkContext.setLogLevel("ERROR")
-
-    // val twitterAuth = new OAuthAuthorization(cb.build)
     
     val streamingContext = new StreamingContext(sparkContext, Seconds(1))
     val stream = KafkaUtils.createDirectStream[String, String](
