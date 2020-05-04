@@ -32,7 +32,7 @@ object TweetStreamProcessor {
       PreferBrokers,
       Subscribe[String, String](topics, kafkaParams)
     )
-    stream.print()
+
     val mappedTweets = stream.map(record => (record.key, record.value))
     mappedTweets.print()
 
