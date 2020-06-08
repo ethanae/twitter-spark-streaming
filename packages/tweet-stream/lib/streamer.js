@@ -23,8 +23,8 @@ async function streamTweets(tags) {
   let totalBytes = 0;
   try {
     const msg = 'Tweet stream started';
-    const delimeter = '='.repeat(msg.length);
-    console.log(chalk.greenBright(`\n${delimeter}\n${msg}\n${delimeter}`));
+    const delimiter = '='.repeat(msg.length);
+    console.log(chalk.greenBright(`\n${delimiter}\n${msg}\n${delimiter}`));
     console.log(chalk.greenBright(chalk.yellow(`\nWatching hash tags:\n${tags.map(x => '#' + x).join(' ')}\n`)));
 
     const client = new Twitter({

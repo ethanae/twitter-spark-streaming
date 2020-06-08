@@ -39,7 +39,7 @@ object TweetStreamProcessor {
 
     val schema = StructType(
       Array(
-        StructField("created_at", DateType, false),
+        StructField("created_at", StringType, false),
         StructField("text", StringType, false),
         StructField("user", StructType(Array(StructField("location", StringType, true))), false)
       )
@@ -48,11 +48,9 @@ object TweetStreamProcessor {
     stream.foreachRDD(rddRaw => {
       val rdd = rddRaw.map(_.value.toString)
       val df = spark.read.schema(schema).json(rdd)
-      df.createOrReplaceTempView("tweet")
-      val text = df.select("text")
-      val sqlDF = spark.sql("select `text` from tweet")
-      sqlDF.printSchema()
-      sqlDF.show
+      df.createOrReplaceTempView("tweets")
+      val data = df.select("text")
+      data.show
     })
 
     ssc.start()
