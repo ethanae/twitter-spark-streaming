@@ -8,6 +8,9 @@ import org.apache.spark.streaming.kafka010._
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferBrokers
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 import org.apache.spark.sql.types.{ StructType, StringType, StructField, DateType }
+import org.bson.Document
+import com.mongodb.spark._
+import com.mongodb.spark.config._
 
 object TweetStreamProcessor {
   def main(args: Array[String]) {
@@ -20,6 +23,10 @@ object TweetStreamProcessor {
       "enable.auto.commit" -> (false: java.lang.Boolean),
       "fetch.message.max.bytes" -> (2097152: java.lang.Integer)
     )
+    val mongodbWriteConfig = WriteConfig(Map(
+      "collection" -> "tweets",
+      "uri" -> "mongodb://127.0.0.1:27017/twitter-data"
+    ))
 
     val topics = Array("tweets")
     val spark = SparkSession
@@ -47,10 +54,12 @@ object TweetStreamProcessor {
 
     stream.foreachRDD(rddRaw => {
       val rdd = rddRaw.map(_.value.toString)
+      val mongoDocuments = rdd.map(Document.parse)
+      mongoDocuments.saveToMongoDB(mongodbWriteConfig)
+
       val df = spark.read.schema(schema).json(rdd)
       df.createOrReplaceTempView("tweets")
-      val data = df.select("text")
-      data.show
+      
     })
 
     ssc.start()
