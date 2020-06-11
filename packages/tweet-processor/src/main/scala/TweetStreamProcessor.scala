@@ -57,6 +57,7 @@ object TweetStreamProcessor {
     import spark.implicits._ 
 
     val dictionary = spark.read.text("resources/dictionary.txt")
+    dictionary.createOrReplaceTempView("dictionary")
 
     stream.foreachRDD(rddRaw => {
       val rdd = rddRaw.map(_.value.toString)
@@ -70,9 +71,13 @@ object TweetStreamProcessor {
         .flatMap{ case Row(s: String) => s.split(" ") }
         .map(_.trim)
 
-      val probableCorrectSpellings = tweetWords.crossJoin(dictionary).withColumn("LD", levenshtein(tweetWords.col("value"), dictionary.col("value")))
+      val misspelledWords = spark.sql("SELECT * from tweets where `text` NOT IN (select `value` from dictionary)")
+      misspelledWords.show
       
-      probableCorrectSpellings.filter($"LD" < 4).show
+      val probableCorrectSpellings = misspelledWords.crossJoin(dictionary)
+        .withColumn("LD", levenshtein(misspelledWords.col("text"), dictionary.col("value")))
+        .sort(asc("LD"))
+        .show
     })
 
     ssc.start()
