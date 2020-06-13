@@ -13,6 +13,8 @@ import com.mongodb.spark._
 import com.mongodb.spark.config._
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
+import org.apache.commons.lang3.StringUtils
+import com.vdurmont.emoji.EmojiParser
 
 object TweetStreamProcessor {
   def main(args: Array[String]) {
@@ -39,7 +41,7 @@ object TweetStreamProcessor {
 
     spark.sparkContext.setLogLevel("ERROR")
 
-    val ssc = new StreamingContext(spark.sparkContext, Seconds(2))
+    val ssc = new StreamingContext(spark.sparkContext, Seconds(6))
     val stream = KafkaUtils.createDirectStream[String, String](
       ssc,
       PreferBrokers,
@@ -54,10 +56,12 @@ object TweetStreamProcessor {
       )
     )
     
-    import spark.implicits._ 
+    import spark.implicits._
 
     val dictionary = spark.read.text("resources/dictionary.txt")
     dictionary.createOrReplaceTempView("dictionary")
+    val badWordsDictionary = spark.read.text("resources/bad-words.txt")
+    badWordsDictionary.createOrReplaceTempView("bad_words_dictionary")
 
     stream.foreachRDD(rddRaw => {
       val rdd = rddRaw.map(_.value.toString)
@@ -68,16 +72,29 @@ object TweetStreamProcessor {
       df.createOrReplaceTempView("tweets")
 
       val tweetWords = df.select("text")
-        .flatMap{ case Row(s: String) => s.split(" ") }
+        .map{ case Row(s: String) => EmojiParser.removeAllEmojis(s) }
+        .flatMap( _.split(" ") )
         .map(_.trim)
-
-      val misspelledWords = spark.sql("SELECT * from tweets where `text` NOT IN (select `value` from dictionary)")
-      misspelledWords.show
+        .map(StringUtils.stripAccents(_))
       
+      tweetWords.createOrReplaceTempView("tweet_words")
+
+      val misspelledWords = spark.sql("SELECT * from tweet_words where `value` NOT IN (select `value` from dictionary)")
+      misspelledWords.show
+
       val probableCorrectSpellings = misspelledWords.crossJoin(dictionary)
-        .withColumn("LD", levenshtein(misspelledWords.col("text"), dictionary.col("value")))
+        .withColumn("LD", levenshtein(misspelledWords.col("value"), dictionary.col("value")))
+        .filter($"LD" < 2)
         .sort(asc("LD"))
         .show
+
+      val offensiveWords = tweetWords.crossJoin(badWordsDictionary)
+        .withColumn("LD", levenshtein(tweetWords.col("value"), badWordsDictionary.col("value")))
+        .filter($"LD" < 2)
+        .sort(asc("LD"))
+        .show
+      
+      
     })
 
     ssc.start()
