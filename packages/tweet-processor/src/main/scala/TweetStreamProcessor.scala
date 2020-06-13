@@ -27,11 +27,12 @@ object TweetStreamProcessor {
       "enable.auto.commit" -> (false: java.lang.Boolean),
       "fetch.message.max.bytes" -> (2097152: java.lang.Integer)
     )
-    val mongodbWriteConfig = WriteConfig(Map(
+
+    val mongodbTweetWriteConfig = WriteConfig(Map(
       "collection" -> "tweets",
       "uri" -> "mongodb://127.0.0.1:27017/twitter-data"
     ))
-
+    
     val topics = Array("tweets")
     val spark = SparkSession
       .builder()
@@ -50,6 +51,7 @@ object TweetStreamProcessor {
 
     val schema = StructType(
       Array(
+        StructField("id_str", StringType, false),
         StructField("created_at", StringType, false),
         StructField("text", StringType, false),
         StructField("user", StructType(Array(StructField("location", StringType, true))), false)
@@ -59,6 +61,7 @@ object TweetStreamProcessor {
     import spark.implicits._
 
     val dictionary = spark.read.text("resources/dictionary.txt")
+    dictionary.withColumnRenamed("value", "correction")
     dictionary.createOrReplaceTempView("dictionary")
     val badWordsDictionary = spark.read.text("resources/bad-words.txt")
     badWordsDictionary.createOrReplaceTempView("bad_words_dictionary")
@@ -66,35 +69,48 @@ object TweetStreamProcessor {
     stream.foreachRDD(rddRaw => {
       val rdd = rddRaw.map(_.value.toString)
       val mongoDocuments = rdd.map(Document.parse)
-      mongoDocuments.saveToMongoDB(mongodbWriteConfig)
+      mongoDocuments.saveToMongoDB(mongodbTweetWriteConfig)
 
       val df = spark.read.schema(schema).json(rdd)
       df.createOrReplaceTempView("tweets")
 
-      val tweetWords = df.select("text")
+      val tweetWords = df.select($"text")
         .map{ case Row(s: String) => EmojiParser.removeAllEmojis(s) }
         .flatMap( _.split(" ") )
         .map(_.trim)
         .map(StringUtils.stripAccents(_))
-      
+
       tweetWords.createOrReplaceTempView("tweet_words")
 
       val misspelledWords = spark.sql("SELECT * from tweet_words where `value` NOT IN (select `value` from dictionary)")
       misspelledWords.show
 
-      val probableCorrectSpellings = misspelledWords.crossJoin(dictionary)
+      val misspellingsAndCorrections = misspelledWords.crossJoin(dictionary)
         .withColumn("LD", levenshtein(misspelledWords.col("value"), dictionary.col("value")))
         .filter($"LD" < 2)
         .sort(asc("LD"))
-        .show
+        .toDF("original", "correction", "LD")
+
+      misspellingsAndCorrections.show
+
+      misspellingsAndCorrections.write
+        .option("uri", "mongodb://127.0.0.1:27017/twitter-data")
+        .option("collection", "misspellingsAndCorrections")
+        .mode("append")
+        .format("mongo")
+        .save()
 
       val offensiveWords = tweetWords.crossJoin(badWordsDictionary)
         .withColumn("LD", levenshtein(tweetWords.col("value"), badWordsDictionary.col("value")))
         .filter($"LD" < 2)
         .sort(asc("LD"))
-        .show
       
-      
+      offensiveWords.write
+        .option("uri", "mongodb://127.0.0.1:27017/twitter-data")
+        .option("collection", "offensiveWords")
+        .mode("append")
+        .format("mongo")
+        .save()
     })
 
     ssc.start()
