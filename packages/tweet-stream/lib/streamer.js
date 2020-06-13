@@ -15,16 +15,16 @@ streamTweets(hashTags).then();
 async function streamTweets(tags) {
   const kafka = new Kafka({
     clientId: 'twitter-stream',
-    brokers: ['localhost:9092', 'localhost:9093', 'localhost:9094']
+    brokers: ['localhost:9092']
   });
   const kafkaProducer = kafka.producer();
   await kafkaProducer.connect();
   const tagsString = tags.join(',');
   let totalBytes = 0;
   try {
-    const msg = 'Tweet stream started';
-    const delimiter = '='.repeat(msg.length);
-    console.log(chalk.greenBright(`\n${delimiter}\n${msg}\n${delimiter}`));
+    const title = 'Tweet stream started';
+    const titleDelimiter = '='.repeat(title.length);
+    console.log(chalk.greenBright(`\n${titleDelimiter}\n${title}\n${titleDelimiter}`));
     console.log(chalk.greenBright(chalk.yellow(`\nWatching hash tags:\n${tags.map(x => '#' + x).join(' ')}\n`)));
 
     const client = new Twitter({
@@ -45,7 +45,8 @@ async function streamTweets(tags) {
       });
       const buffer = Buffer.from(stringified);
       totalBytes += buffer.byteLength;
-      process.stdout.write(chalk.blueBright(`Data streamed: ${(totalBytes / BYTES_PER_MB).toFixed(2)}MB\r`));
+      process.stdout.write('***\r')
+      process.stdout.write(chalk.blueBright(`Streaming Tweets: ${(totalBytes / BYTES_PER_MB).toFixed(2)}MB\r`));
     });
   } catch (err) {
     kafkaProducer.disconnect();
