@@ -15,6 +15,11 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
 import org.apache.commons.lang3.StringUtils
 import com.vdurmont.emoji.EmojiParser
+import org.apache.spark.sql.functions.array
+import com.mongodb.spark.sql.fieldTypes
+
+
+case class SeenWord(_id: fieldTypes.ObjectId, word: String, frequency: Long)
 
 object TweetStreamProcessor {
   def main(args: Array[String]) {
@@ -67,21 +72,44 @@ object TweetStreamProcessor {
     badWordsDictionary.createOrReplaceTempView("bad_words_dictionary")
 
     stream.foreachRDD(rddRaw => {
+
       val rdd = rddRaw.map(_.value.toString)
       val mongoDocuments = rdd.map(Document.parse)
       mongoDocuments.saveToMongoDB(mongodbTweetWriteConfig)
 
-      val df = spark.read.schema(schema).json(rdd)
-      df.createOrReplaceTempView("tweets")
+      val rawTweetDf = spark.read.schema(schema).json(rdd)
+      rawTweetDf.createOrReplaceTempView("tweets")
 
-      val tweetWords = df.select($"text")
-        .map{ case Row(s: String) => EmojiParser.removeAllEmojis(s) }
-        .flatMap( _.split(" ") )
+      val tweetText = rawTweetDf.select("text")
+
+      val seenWords = MongoSpark.load[SeenWord](spark, ReadConfig(Map("uri" -> "mongodb://127.0.0.1:27017/twitter-data.seenWords")))
+      val tweetWords = tweetText.flatMap{ case Row(s: String) => s.split(" ") }.map(w => (w, 1)).toDF("word", "frequency")
+
+      val knownWords = tweetWords
+        .groupBy("word")
+        .count()
+        .join(seenWords, tweetWords("word") === seenWords("word"), "left")
+        .toDF("word", "f", "_id", "value", "frequency")
+        .na.fill(0, Array("frequency"))
+        .select($"_id", $"word", ($"f" + $"frequency").as("frequency"))
+
+      knownWords.show
+
+      knownWords
+        .write
+        .option("uri", "mongodb://127.0.0.1:27017/twitter-data")
+        .option("collection", "seenWords")
+        .mode("append")
+        .format("mongo")
+        .save()
+
+      val cleanedWords = tweetText.map{ case Row(s: String) => EmojiParser.removeAllEmojis(s) }
+        .flatMap(_.split(" "))
         .map(_.trim)
         .map(StringUtils.stripAccents(_))
 
-      tweetWords.createOrReplaceTempView("tweet_words")
-
+      cleanedWords.createOrReplaceTempView("tweet_words")
+      
       val misspelledWords = spark.sql("SELECT * from tweet_words where `value` NOT IN (select `value` from dictionary)")
       misspelledWords.show
 
@@ -93,19 +121,21 @@ object TweetStreamProcessor {
 
       misspellingsAndCorrections.show
 
-      misspellingsAndCorrections.write
+      misspellingsAndCorrections
+        .write
         .option("uri", "mongodb://127.0.0.1:27017/twitter-data")
         .option("collection", "misspellingsAndCorrections")
         .mode("append")
         .format("mongo")
         .save()
 
-      val offensiveWords = tweetWords.crossJoin(badWordsDictionary)
-        .withColumn("LD", levenshtein(tweetWords.col("value"), badWordsDictionary.col("value")))
+      val offensiveWords = cleanedWords.crossJoin(badWordsDictionary)
+        .withColumn("LD", levenshtein(cleanedWords.col("value"), badWordsDictionary.col("value")))
         .filter($"LD" < 2)
         .sort(asc("LD"))
       
-      offensiveWords.write
+      offensiveWords
+        .write
         .option("uri", "mongodb://127.0.0.1:27017/twitter-data")
         .option("collection", "offensiveWords")
         .mode("append")
