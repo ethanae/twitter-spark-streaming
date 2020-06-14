@@ -49,9 +49,6 @@ const Words = () => {
           1. Total Words Analysed: {totalWords.total}
         </Typography>
       </Box>
-      <Box component="div" m={2}>
-        <hr />
-      </Box>
       <Box component="div" m={2} border="">
         <Typography variant="h6" >
           2. The {words.length} Most Common Words Found in Tweets

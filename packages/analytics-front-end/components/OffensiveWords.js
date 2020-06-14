@@ -48,9 +48,6 @@ const OffensiveWords = () => {
           1. Total Offensive Words Seen in All Tweets: {totalOffensiveWords}
         </Typography>
       </Box>
-      <Box component="div" m={2}>
-        <hr />
-      </Box>
       <Box color="text.primary" component="div" m={2} border="">
         <Typography variant="h6" >
           2. The {offensiveWords.length} Most Frequent Offensive Words Found in Tweets

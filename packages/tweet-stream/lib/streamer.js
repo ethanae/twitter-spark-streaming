@@ -33,7 +33,7 @@ async function streamTweets(tags) {
       access_token_key: accessToken,
       access_token_secret: tokenSecret
     });
-    const stream = client.stream('statuses/filter', { track: tagsString });
+    const stream = client.stream('statuses/filter', { track: tagsString, language: 'en' });
 
     stream.on('data', async event => {
       const stringified = JSON.stringify(event);

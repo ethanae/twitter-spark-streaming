@@ -25,7 +25,7 @@ async function routes(fastify, options) {
     const offensiveWords = database.collection('offensiveWords');
     const result = await offensiveWords.aggregate([
       {
-        $match: { value: { $ne: '' } }
+        $match: { $expr: { $gt: [{ $strLenCP: '$value' }, 2] } }
       },
       {
         "$group": {
@@ -62,6 +62,15 @@ async function routes(fastify, options) {
     const offensiveWords = database.collection('spellingCorrections');
     const result = await offensiveWords.aggregate([
       {
+        $match: {
+          $and: [
+            {
+              $expr: { $gt: [{ $strLenCP: '$original' }, 2] }
+            }
+          ]
+        }
+      },
+      {
         "$group": {
           _id: { original: "$original" },
           count: {
@@ -87,7 +96,9 @@ async function routes(fastify, options) {
     const words = req.query.words.split(',');
     const result = await spellingCorrections.aggregate([
       {
-        $match: { original: { $in: words } }
+        $match: {
+          original: { $in: words }
+        }
       },
       {
         "$group": {
