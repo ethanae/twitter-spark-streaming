@@ -113,18 +113,18 @@ object TweetStreamProcessor {
       val misspelledWords = spark.sql("SELECT * from tweet_words where `value` NOT IN (select `value` from dictionary)")
       misspelledWords.show
 
-      val misspellingsAndCorrections = misspelledWords.crossJoin(dictionary)
+      val spellingCorrections = misspelledWords.crossJoin(dictionary)
         .withColumn("LD", levenshtein(misspelledWords.col("value"), dictionary.col("value")))
         .filter($"LD" < 2)
         .sort(asc("LD"))
         .toDF("original", "correction", "LD")
 
-      misspellingsAndCorrections.show
+      spellingCorrections.show
 
-      misspellingsAndCorrections
+      spellingCorrections
         .write
         .option("uri", "mongodb://127.0.0.1:27017/twitter-data")
-        .option("collection", "misspellingsAndCorrections")
+        .option("collection", "spellingCorrections")
         .mode("append")
         .format("mongo")
         .save()
