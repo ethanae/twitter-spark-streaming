@@ -86,7 +86,8 @@ object TweetStreamProcessor {
       val tweetWords = tweetText
         .flatMap{ case Row(s: String) => s.toLowerCase.split(" ") }
         .map(x => x.replaceAll("[()`~,|\\.?'\":;/\\*\\-\\+!@#$%\\^&_=1234567890]", ""))
-        .filter(!StringUtils.isWhitespace(_))
+        .map(s => s.replaceAll("\\s", ""))
+        .filter(s => s != "")
         .map(w => (w, 1)).toDF("word", "frequency")
 
       tweetWords.show
