@@ -47,7 +47,7 @@ object TweetStreamProcessor {
 
     spark.sparkContext.setLogLevel("ERROR")
 
-    val ssc = new StreamingContext(spark.sparkContext, Seconds(6))
+    val ssc = new StreamingContext(spark.sparkContext, Seconds(1))
     val stream = KafkaUtils.createDirectStream[String, String](
       ssc,
       PreferBrokers,
@@ -93,7 +93,7 @@ object TweetStreamProcessor {
         .na.fill(0, Array("frequency"))
         .select($"_id", $"word", ($"f" + $"frequency").as("frequency"))
 
-      knownWords.show
+      // knownWords.show
 
       knownWords
         .write
@@ -105,7 +105,8 @@ object TweetStreamProcessor {
 
       val cleanedWords = tweetText.map{ case Row(s: String) => EmojiParser.removeAllEmojis(s) }
         .flatMap(_.split(" "))
-        .map(_.trim)
+        .map(_.trim.toLowerCase)
+        .filter(!StringUtils.isWhitespace(_))
         .map(StringUtils.stripAccents(_))
 
       cleanedWords.createOrReplaceTempView("tweet_words")
