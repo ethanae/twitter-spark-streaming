@@ -75,7 +75,7 @@ const Spelling = () => {
         <Typography variant="h6" >
           2. The  {misspellings.length} Most Misspelled Words:
         </Typography>
-        <Chart height="350" options={options.options} series={options.series} type="bar" />
+        <Chart width="70%" height="325" options={options.options} series={options.series} type="bar" />
       </Box>
       <Box component="div" m={2} border="">
         <Typography variant="h6" >

@@ -55,7 +55,7 @@ const OffensiveWords = () => {
         <Typography variant="h6" >
           2. The {offensiveWords.length} Most Frequent Offensive Words Found in Tweets
         </Typography>
-        <Chart height="350" options={offensiveWordsOptions.options} series={offensiveWordsOptions.series} type="bar" />
+        <Chart width="70%" height="325" options={offensiveWordsOptions.options} series={offensiveWordsOptions.series} type="bar" />
       </Box>
     </Box>
   );

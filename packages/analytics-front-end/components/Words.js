@@ -56,7 +56,7 @@ const Words = () => {
         <Typography variant="h6" >
           2. The {words.length} Most Common Words Found in Tweets
         </Typography>
-        <Chart height="350" options={options.options} series={options.series} type="bar" />
+        <Chart width="70%" height="325" options={options.options} series={options.series} type="bar" />
       </Box>
     </Box>
   );

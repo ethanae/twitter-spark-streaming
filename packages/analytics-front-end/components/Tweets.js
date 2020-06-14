@@ -29,7 +29,7 @@ const Tweets = () => {
         <Typography variant="h6">
           1. {tweetLocations.length} Most Frequent Tweet Locations
         </Typography>
-        <Chart height="350" type="pie" series={options.series} options={options.options} />
+        <Chart width="70%" height="325" type="pie" series={options.series} options={options.options} />
       </Box>
     </Box>
   );
