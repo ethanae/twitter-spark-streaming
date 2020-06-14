@@ -3,7 +3,11 @@ async function routes(fastify, options) {
 
   fastify.get('/api/analytics/words/frequencies', async (req, reply) => {
     const seenWords = database.collection('seenWords');
-    const result = await seenWords.find().sort({ frequency: -1 }).limit(10).toArray();
+    const result = await seenWords
+      .find({ $expr: { $gt: [{ $strLenCP: '$word' }, 3] } })
+      .sort({ frequency: -1 })
+      .limit(10)
+      .toArray();
     return reply
       .code(200)
       .header('Content-Type', 'application/json')
@@ -65,7 +69,7 @@ async function routes(fastify, options) {
         $match: {
           $and: [
             {
-              $expr: { $gt: [{ $strLenCP: '$original' }, 2] }
+              $expr: { $gt: [{ $strLenCP: '$original' }, 3] }
             }
           ]
         }
@@ -154,6 +158,17 @@ async function routes(fastify, options) {
       ])
       .limit(15)
       .toArray();
+
+    return reply
+      .code(200)
+      .header('Content-Type', 'application/json')
+      .header('Access-Control-Allow-Origin', '*')
+      .send(result)
+  });
+
+  fastify.get('/api/analytics/tweet/count', async (req, reply) => {
+    const tweets = database.collection('tweets');
+    const result = await tweets.find().count();
 
     return reply
       .code(200)

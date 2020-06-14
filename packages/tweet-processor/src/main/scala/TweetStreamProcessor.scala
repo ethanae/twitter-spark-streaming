@@ -112,6 +112,7 @@ object TweetStreamProcessor {
         .map(_.trim.toLowerCase)
         .map(StringUtils.stripAccents(_))
         .filter(StringUtils.isAsciiPrintable(_))
+        .filter(s => s != "")
 
       cleanedWords.createOrReplaceTempView("tweet_words")
       
