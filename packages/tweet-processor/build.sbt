@@ -7,6 +7,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-streaming_2.11" % "2.2.0",
   "org.apache.spark" % "spark-sql_2.11" % "2.2.0",
   "org.mongodb.spark" % "mongo-spark-connector_2.11" % "2.4.1",
-  "org.apache.commons" % "commons-lang3" % "3.0",
+  "org.apache.commons" % "commons-lang3" % "3.10",
   "com.vdurmont" % "emoji-java" % "5.1.1"
 )
