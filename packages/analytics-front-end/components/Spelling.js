@@ -78,6 +78,9 @@ const Spelling = () => {
         <Chart height="350" options={options.options} series={options.series} type="bar" />
       </Box>
       <Box component="div" m={2} border="">
+        <Typography variant="h6" >
+          3. Spelling Corrections:
+        </Typography>
         <TableContainer component={Paper}>
           <Table className={classes.table} aria-label="simple table">
             <TableHead>

@@ -85,7 +85,7 @@ object TweetStreamProcessor {
       val seenWords = MongoSpark.load[SeenWord](spark, ReadConfig(Map("uri" -> "mongodb://127.0.0.1:27017/twitter-data.seenWords")))
       val tweetWords = tweetText
         .flatMap{ case Row(s: String) => s.toLowerCase.split(" ") }
-        .map(x => x.replaceAll("[()\\.?'\":;/\\*\\-\\+!@#$%\\^&_=1234567890]", ""))
+        .map(x => x.replaceAll("[()`~,|\\.?'\":;/\\*\\-\\+!@#$%\\^&_=1234567890]", ""))
         .filter(!StringUtils.isWhitespace(_))
         .map(w => (w, 1)).toDF("word", "frequency")
 
