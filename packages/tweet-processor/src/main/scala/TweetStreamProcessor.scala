@@ -47,7 +47,7 @@ object TweetStreamProcessor {
 
     spark.sparkContext.setLogLevel("ERROR")
 
-    val ssc = new StreamingContext(spark.sparkContext, Seconds(1))
+    val ssc = new StreamingContext(spark.sparkContext, Seconds(4))
     val stream = KafkaUtils.createDirectStream[String, String](
       ssc,
       PreferBrokers,
@@ -83,8 +83,13 @@ object TweetStreamProcessor {
       val tweetText = rawTweetDf.select("text")
 
       val seenWords = MongoSpark.load[SeenWord](spark, ReadConfig(Map("uri" -> "mongodb://127.0.0.1:27017/twitter-data.seenWords")))
-      val tweetWords = tweetText.flatMap{ case Row(s: String) => s.toLowerCase.split(" ") }.map(w => (w, 1)).toDF("word", "frequency")
+      val tweetWords = tweetText
+        .flatMap{ case Row(s: String) => s.toLowerCase.split(" ") }
+        .map(x => x.replaceAll("[()\\.?'\":;/\\*\\-\\+!@#$%\\^&_=1234567890]", ""))
+        .filter(!StringUtils.isWhitespace(_))
+        .map(w => (w, 1)).toDF("word", "frequency")
 
+      tweetWords.show
       val knownWords = tweetWords
         .groupBy("word")
         .count()
@@ -92,8 +97,6 @@ object TweetStreamProcessor {
         .toDF("word", "f", "_id", "value", "frequency")
         .na.fill(0, Array("frequency"))
         .select($"_id", $"word", ($"f" + $"frequency").as("frequency"))
-
-      // knownWords.show
 
       knownWords
         .write
@@ -103,11 +106,11 @@ object TweetStreamProcessor {
         .format("mongo")
         .save()
 
-      val cleanedWords = tweetText.map{ case Row(s: String) => EmojiParser.removeAllEmojis(s) }
+      val cleanedWords = tweetWords.map{ case Row(s: String, f: Integer) => EmojiParser.removeAllEmojis(s)}
         .flatMap(_.split(" "))
         .map(_.trim.toLowerCase)
-        .filter(!StringUtils.isWhitespace(_))
         .map(StringUtils.stripAccents(_))
+        .filter(StringUtils.isAsciiPrintable(_))
 
       cleanedWords.createOrReplaceTempView("tweet_words")
       
